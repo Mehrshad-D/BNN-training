@@ -4,13 +4,14 @@ import torch.optim as optim
 import torchvision
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
-
+import numpy as np
 import random
 
 import random
 import math
 
 class NoisyBinarize(torch.autograd.Function):
+    recorded_abs_vals = []
     @staticmethod
     def forward(ctx, input, sigma=5.0):
         noisy_output = input.clone()
@@ -19,10 +20,11 @@ class NoisyBinarize(torch.autograd.Function):
             for j in range(noisy_output.shape[1]):
                 val = noisy_output[i, j].item()
                 abs_val = abs(val)
-                # print(abs_val + "/")
+                # print(abs_val)
+                NoisyBinarize.recorded_abs_vals.append(abs_val)
                 # noisy_output[i, j] = 1 if val > 0 else -1
 
-                if abs_val > 2:
+                if abs_val > 50:
                     # Strong activation → no noise
                     noisy_output[i, j] = 1 if val > 0 else -1
                 else:
@@ -129,12 +131,20 @@ class BNN(nn.Module):
         # x = NoisyBinarize.apply(self.bn3(self.fc3(x)))
         # x = self.fc4(x) # output stays real (not binary)
         # return x
+
         x = x.view(-1, 28 * 28)  # Flatten the input
         x = Binarize.apply(self.bn1(self.fc1(x)))
-        x = Binarize.apply(self.bn2(self.fc2(x)))
-        x = Binarize.apply(self.bn3(self.fc3(x)))
+        x = Binarize.apply(self.bn2(NoisyBinarize.apply(self.fc2(x))))
+        x = Binarize.apply(self.bn3(NoisyBinarize.apply(self.fc3(x))))
         x = self.fc4(x) # output stays real (not binary)
         return x
+    
+        # x = x.view(-1, 28 * 28)  # Flatten the input
+        # x = Binarize.apply(self.bn1(self.fc1(x)))
+        # x = Binarize.apply(self.bn2(self.fc2(x)))
+        # x = Binarize.apply(self.bn3(self.fc3(x)))
+        # x = self.fc4(x) # output stays real (not binary)
+        # return x
     
 # Evaluation Function
 def evaluate(model, dataloader):
@@ -262,6 +272,7 @@ def plot_activation_magnitudes(model, dataloader):
             a3 = model.bn3(a3)
 
             a4 = model.fc4(torch.sign(a3))
+            # print(a4)
             abs_activations.append(a4.abs().flatten())
             
             # break  # Only use first batch to keep it fast
@@ -280,6 +291,29 @@ def plot_activation_magnitudes(model, dataloader):
     plt.grid(True)
     plt.show()
 
+    # Plot CDF
+    sorted_vals = np.sort(all_abs_vals)
+    cdf = np.arange(len(sorted_vals)) / len(sorted_vals)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(sorted_vals, cdf, color='green')
+    plt.title("Cumulative Distribution of |activation|")
+    plt.xlabel("|activation|")
+    plt.ylabel("Cumulative Probability")
+    plt.grid(True)
+    plt.show()
+
+
+def plot_abs():
+    abs_vals = NoisyBinarize.recorded_abs_vals
+
+    plt.figure(figsize=(8, 5))
+    plt.hist(abs_vals, bins=100, color='orange', edgecolor='black', density=True)
+    plt.title("Histogram of Absolute Activation Values (Before Noisy Binarization)")
+    plt.xlabel("|activation|")
+    plt.ylabel("Density")
+    plt.grid(True)
+    plt.show()
 
 
 # Datasets and Dataloaders
@@ -295,4 +329,5 @@ model.load_state_dict(torch.load('trained_bnn_1024.pth'))
 evaluate(model, testloader) # main model
 # test_weight_perturbation('trained_bnn_1024.pth', testloader, 0.05)
 # perturb_and_plot('trained_bnn_1024.pth', testloader)
-plot_activation_magnitudes(model, testloader)
+# plot_activation_magnitudes(model, testloader)
+plot_abs()

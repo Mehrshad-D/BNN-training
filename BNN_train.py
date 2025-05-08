@@ -57,8 +57,8 @@ class BNN(nn.Module):
         # return x
         x = x.view(-1, 28 * 28)  # Flatten the input
         x = Binarize.apply(self.bn1(self.fc1(x)))
-        x = Binarize.apply(self.bn2(self.fc2(x)))
-        x = Binarize.apply(self.bn3(self.fc3(x)))
+        x = Binarize.apply(self.bn2(Binarize.apply(self.fc2(x))))
+        x = Binarize.apply(self.bn3(Binarize.apply(self.fc3(x))))
         x = self.fc4(x) # output stays real (not binary)
         return x
     
