@@ -124,12 +124,6 @@ class BNN(nn.Module):
 
     def forward(self, x):
         # x = x.view(-1, 28 * 28)  # Flatten the input
-        # x = self.bn1(torch.relu(self.fc1(x)))
-        # x = self.bn2(torch.relu(self.fc2(x)))
-        # x = self.fc3(x)
-        # return x
-
-        # x = x.view(-1, 28 * 28)  # Flatten the input
         # x = NoisyBinarize.apply(self.bn1(self.fc1(x)))
         # x = NoisyBinarize.apply(self.bn2(self.fc2(x)))
         # x = NoisyBinarize.apply(self.bn3(self.fc3(x)))
