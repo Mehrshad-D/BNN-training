@@ -258,7 +258,6 @@ def plot_activation_magnitudes(model, dataloader):
 
             # Second layer
             a2 = model.fc2(torch.sign(a1))  # simulate binarized activations
-            print(a2)
             abs_activations.append(a2.abs().flatten())
             a2 = model.bn2(a2)
             
@@ -267,8 +266,11 @@ def plot_activation_magnitudes(model, dataloader):
             a3 = model.fc3(torch.sign(a2))
             abs_activations.append(a3.abs().flatten())
             a3 = model.bn3(a3)
+
+            a4 = model.fc4(torch.sign(a3))
+            abs_activations.append(a4.abs().flatten())
             
-            break  # Only use first batch to keep it fast
+            # break  # Only use first batch to keep it fast
 
     # Concatenate all absolute activations
     # print(abs_activations)
