@@ -215,7 +215,6 @@ def plot_activation_magnitudes(model, dataloader):
     with torch.no_grad():
         for images, _ in dataloader:
             
-            print(len(images))
             x = images.view(-1, 28 * 28)
 
            
@@ -246,7 +245,6 @@ def plot_activation_magnitudes(model, dataloader):
     # Concatenate all absolute activations
     # print(len(abs_activations))
     all_abs_vals = torch.cat(abs_activations).cpu().numpy()
-    print(len(all_abs_vals))
     
 
     # Plot histogram
