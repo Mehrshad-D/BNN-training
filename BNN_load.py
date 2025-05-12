@@ -13,7 +13,7 @@ import math
 class NoisyBinarize(torch.autograd.Function):
     recorded_abs_vals = []
     @staticmethod
-    def forward(ctx, input, sigma=5.0):
+    def forward(ctx, input, sigma=15.0):
         noisy_output = input.clone()
 
         for i in range(noisy_output.shape[0]):
@@ -45,39 +45,7 @@ class NoisyBinarize(torch.autograd.Function):
         grad_input = grad_output.clone()
         grad_input *= 0.5
         return grad_input, None  # second arg is for sigma
-
-
-# class NoisyBinarize(torch.autograd.Function):
-#     @staticmethod
-#     def forward(ctx, input):
-#         noisy_output = input.clone()
-
-#         # Loop through all elements and apply noise depending on magnitude
-#         for i in range(noisy_output.shape[0]):
-#             for j in range(noisy_output.shape[1]):
-#                 val = noisy_output[i, j].item()
-#                 abs_val = abs(val)
-                
-#                 if abs_val > 100:
-#                     noisy_output[i, j] = 1 if val > 0 else -1
-#                 elif abs_val < 5:
-#                     noisy_output[i, j] = 1 if random.random() < 0.5 else -1
-#                 else:
-#                     # Linear interpolation of noise probability
-#                     prob = 0.5 * (1 - (abs_val - 5) / 95)  # goes from 0.5 to 0 as abs_val→100
-#                     if random.random() < prob:
-#                         noisy_output[i, j] = -1 if val > 0 else 1  # flip
-#                     else:
-#                         noisy_output[i, j] = 1 if val > 0 else -1
-#         return noisy_output
-
-#     @staticmethod
-#     def backward(ctx, grad_output):
-#         # Use STE for backward (same as Binarize)
-#         grad_input = grad_output.clone()
-#         grad_input *= 0.5
-#         return grad_input
-
+    
 
 # Binarize function with STE (Straight Through Estimator)
 class Binarize(torch.autograd.Function):
@@ -125,13 +93,6 @@ class BNN(nn.Module):
         
 
     def forward(self, x):
-        # x = x.view(-1, 28 * 28)  # Flatten the input
-        # x = NoisyBinarize.apply(self.bn1(self.fc1(x)))
-        # x = NoisyBinarize.apply(self.bn2(self.fc2(x)))
-        # x = NoisyBinarize.apply(self.bn3(self.fc3(x)))
-        # x = self.fc4(x) # output stays real (not binary)
-        # return x
-
         x = x.view(-1, 28 * 28)  # Flatten the input
         x = Binarize.apply(self.bn1(self.fc1(x)))
         x = Binarize.apply(self.bn2(NoisyBinarize.apply(self.fc2(x))))
@@ -141,10 +102,11 @@ class BNN(nn.Module):
     
         # x = x.view(-1, 28 * 28)  # Flatten the input
         # x = Binarize.apply(self.bn1(self.fc1(x)))
-        # x = Binarize.apply(self.bn2(self.fc2(x)))
-        # x = Binarize.apply(self.bn3(self.fc3(x)))
+        # x = Binarize.apply(self.bn2(Binarize.apply(self.fc2(x))))
+        # x = Binarize.apply(self.bn3(Binarize.apply(self.fc3(x))))
         # x = self.fc4(x) # output stays real (not binary)
         # return x
+
     
 # Evaluation Function
 def evaluate(model, dataloader):
@@ -252,6 +214,8 @@ def plot_activation_magnitudes(model, dataloader):
 
     with torch.no_grad():
         for images, _ in dataloader:
+            
+            print(len(images))
             x = images.view(-1, 28 * 28)
 
            
@@ -263,12 +227,14 @@ def plot_activation_magnitudes(model, dataloader):
             # Second layer
             a2 = model.fc2(torch.sign(a1))  # simulate binarized activations
             abs_activations.append(a2.abs().flatten())
+            a2 = torch.sign(a2)
             a2 = model.bn2(a2)
             
             
             # Third layer
             a3 = model.fc3(torch.sign(a2))
             abs_activations.append(a3.abs().flatten())
+            a3 = torch.sign(a3)
             a3 = model.bn3(a3)
 
             a4 = model.fc4(torch.sign(a3))
@@ -278,8 +244,9 @@ def plot_activation_magnitudes(model, dataloader):
             # break  # Only use first batch to keep it fast
 
     # Concatenate all absolute activations
-    # print(abs_activations)
+    # print(len(abs_activations))
     all_abs_vals = torch.cat(abs_activations).cpu().numpy()
+    print(len(all_abs_vals))
     
 
     # Plot histogram
@@ -329,5 +296,5 @@ model.load_state_dict(torch.load('trained_bnn_1024.pth'))
 evaluate(model, testloader) # main model
 # test_weight_perturbation('trained_bnn_1024.pth', testloader, 0.05)
 # perturb_and_plot('trained_bnn_1024.pth', testloader)
-# plot_activation_magnitudes(model, testloader)
-plot_abs()
+plot_activation_magnitudes(model, testloader)
+# plot_abs()
